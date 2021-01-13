@@ -7,7 +7,7 @@ import time
 import matplotlib.pyplot as plt
 
 
-def scrape(link: str) -> Tuple[str, float]:
+def scrape(link: str) -> Tuple[str, float, str]:
     page = requests.get(link).text
     psoup = BeautifulSoup(page, 'lxml')
 
@@ -15,24 +15,27 @@ def scrape(link: str) -> Tuple[str, float]:
     name = namefind.text
 
     valfind = psoup.find('div', {'class': 'price last'})
-    valtext = valfind.text[:-1].strip().replace(',', '')
+    valtext = valfind.text[:-1].replace(',', '').replace(' ', '')
     value = float(valtext)
 
-    return (name, value)
+    updfind = psoup.find('div', {'class': 'updated-block'})
+    updtext = updfind.text
 
-def scrape_and_store(link: str, db: database) -> Tuple[str, float]:
-    name, price = scrape(link)
-    db.add_datapt(name, datetime.now(), price)
-    return (name, price)
+    return (name, value, updtext)
+
+def scrape_and_store(link: str, db: database) -> Tuple[str, float, datetime]:
+    name, price, updated = scrape(link)
+    t = datetime.now()
+    db.add_datapt(name, t, price)
+    return (name, price, t, updated)
 
 def autoscrape(link: str, minutes_per_scrape: float, db: database):
     while True:
-        name, price = scrape_and_store(link, db)
-        print("scraped data:", name + ",", price,  "₽")
+        name, price, t, updated = scrape_and_store(link, db)
+        print(t.strftime("%H:%M:%S") + " - scraped data:", name + ",", price,  "₽", updated)
         time.sleep(minutes_per_scrape * 60)
 
 def graph(name: str, db: database):
     data = db.get_item_data(name)
-    print(data)
-    plt.plot(data.keys(), data.values(), )
+    plt.plot(data.keys(), data.values(), 'go-')
     plt.show()
